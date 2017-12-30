@@ -44,7 +44,7 @@ def softmax_loss_naive(W, X, y, reg):
     return loss, dW
 
 
-def softmax_loss_vectorized(W, X, y, reg):
+def softmax_loss_vectorized(W=None, X=None, y=None, reg=None, scores=None):
     """
     Softmax loss function, vectorized version.
 
@@ -52,18 +52,27 @@ def softmax_loss_vectorized(W, X, y, reg):
     """
     # Initialize the loss and gradient to zero.
     loss = .0
-    dW = np.zeros_like(W)
-    num_train, dim = X.shape
-    num_classes = W.shape[1]
+    dW, score = None, None
 
-    exp_score = np.exp(X.dot(W))
+    if scores is None:
+        dW = np.zeros_like(W)
+        num_train, dim = X.shape
+        num_classes = W.shape[1]
+        score = X.dot(W)
+    else:
+        num_train, num_classes = scores.shape
+        score = scores
+
+    exp_score = np.exp(score)
     sum_score = np.sum(exp_score, axis=1)
     prob_score = (exp_score.T / sum_score).T
     correct_label_prob_score = prob_score[np.arange(num_train), y]
     loss -= np.sum(np.log(correct_label_prob_score))
-    loss = loss / num_train + .5 * reg * np.sum(W * W)
+    loss = loss / num_train
 
     # Modify prob_score, substract correct label score by 1
-    prob_score[np.arange(num_train), y] -= 1
-    dW = X.T.dot(prob_score) / num_train + reg * W
+    if W is not None:
+        loss += .5 * reg * np.sum(W * W)
+        prob_score[np.arange(num_train), y] -= 1
+        dW = X.T.dot(prob_score) / num_train + reg * W
     return loss, dW
