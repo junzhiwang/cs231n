@@ -1,9 +1,7 @@
-from builtins import range
-from builtins import object
+from builtins import range, object
+from layer_utils import softmax_loss, affine_relu_forward, affine_relu_backward
+from layers import affine_forward, affine_backward
 import numpy as np
-
-from layers import *
-from layer_utils import *
 
 
 class TwoLayerNet(object):
@@ -163,7 +161,6 @@ class FullyConnectedNet(object):
         # Cast all parameters to the correct datatype
         for k, v in self.params.items():
             self.params[k] = v.astype(dtype)
-
 
     def loss(self, X, y=None):
         """
