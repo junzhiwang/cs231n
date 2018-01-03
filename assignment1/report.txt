@@ -1,0 +1,4 @@
+hidden_size 500.000000, learning_rate 0.003000, regularization_strength 0.015000, batch_size 1000.000000, ---> validation set accuracy 0.552000
+hidden_size 500.000000, learning_rate 0.003000, regularization_strength 0.015000, batch_size 1000.000000, ---> validation set accuracy 0.551000
+hidden_size 500.000000, learning_rate 0.003000, regularization_strength 0.015000, batch_size 1000.000000, ---> validation set accuracy 0.554000
+hidden_size 500.000000, learning_rate 0.003000, regularization_strength 0.015000, batch_size 1000.000000, ---> validation set accuracy 0.560000
