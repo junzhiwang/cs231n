@@ -8,3 +8,4 @@
 **/tiny-100-A-pretrained/*
 **/*.pyc
 **/.DS_Store
+.cnnenv

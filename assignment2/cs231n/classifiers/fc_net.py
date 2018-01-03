@@ -2,8 +2,8 @@ from builtins import range
 from builtins import object
 import numpy as np
 
-from cs231n.layers import *
-from cs231n.layer_utils import *
+from layers import *
+from layer_utils import *
 
 
 class TwoLayerNet(object):
@@ -38,20 +38,10 @@ class TwoLayerNet(object):
         """
         self.params = {}
         self.reg = reg
-
-        ############################################################################
-        # TODO: Initialize the weights and biases of the two-layer net. Weights    #
-        # should be initialized from a Gaussian with standard deviation equal to   #
-        # weight_scale, and biases should be initialized to zero. All weights and  #
-        # biases should be stored in the dictionary self.params, with first layer  #
-        # weights and biases using the keys 'W1' and 'b1' and second layer weights #
-        # and biases using the keys 'W2' and 'b2'.                                 #
-        ############################################################################
-        pass
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
-
+        self.params['W1'] = weight_scale * np.random.randn(input_dim, hidden_dim)
+        self.params['b1'] = np.zeros(hidden_dim, dtype=float)
+        self.params['W2'] = weight_scale * np.random.randn(hidden_dim, num_classes)
+        self.params['b2'] = np.zeros(num_classes, dtype=float)
 
     def loss(self, X, y=None):
         """
@@ -72,36 +62,20 @@ class TwoLayerNet(object):
         - grads: Dictionary with the same keys as self.params, mapping parameter
           names to gradients of the loss with respect to those parameters.
         """
-        scores = None
-        ############################################################################
-        # TODO: Implement the forward pass for the two-layer net, computing the    #
-        # class scores for X and storing them in the scores variable.              #
-        ############################################################################
-        pass
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
+        W1, W2, b1, b2 = self.params['W1'], self.params['W2'], self.params['b1'], self.params['b2']
+        hidden_out, cache1 = affine_relu_forward(X, W1, b1)
+        scores, cache2 = affine_forward(hidden_out, W2, b2)
 
-        # If y is None then we are in test mode so just return scores
         if y is None:
             return scores
 
-        loss, grads = 0, {}
-        ############################################################################
-        # TODO: Implement the backward pass for the two-layer net. Store the loss  #
-        # in the loss variable and gradients in the grads dictionary. Compute data #
-        # loss using softmax, and make sure that grads[k] holds the gradients for  #
-        # self.params[k]. Don't forget to add L2 regularization!                   #
-        #                                                                          #
-        # NOTE: To ensure that your implementation matches ours and you pass the   #
-        # automated tests, make sure that your L2 regularization includes a factor #
-        # of 0.5 to simplify the expression for the gradient.                      #
-        ############################################################################
-        pass
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
-
+        grads = {}
+        loss, dScore = softmax_loss(scores, y)
+        loss += .5 * self.reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
+        dX2, grads['W2'], grads['b2'] = affine_backward(dScore, cache2)
+        dX, grads['W1'], grads['b1'] = affine_relu_backward(dX2, cache1)
+        grads['W2'] += self.reg * W2
+        grads['W1'] += self.reg * W1
         return loss, grads
 
 
