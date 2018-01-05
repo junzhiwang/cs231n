@@ -20,8 +20,8 @@ def affine_forward(x, w, b):
     - out: output, of shape (N, M)
     - cache: (x, w, b)
     """
-    reshaped_X = x.reshape(x.shape[0], -1)
-    out = reshaped_X.dot(w) + b
+    reshaped_x = x.reshape(x.shape[0], -1)
+    out = reshaped_x.dot(w) + b
     cache = (x, w, b)
     return out, cache
 
