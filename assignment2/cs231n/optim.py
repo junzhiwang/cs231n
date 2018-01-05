@@ -121,5 +121,5 @@ def adam(x, dx, config=None):
     v = config['beta2'] * config['v'] + (1 - config['beta2']) * dx**2
     vt = v / (1 - config['beta2']**config['t'])
     next_x = x - config['learning_rate'] * mt / (np.sqrt(vt) + config['epsilon'])
-    config['m'], config['v'], config['t'] = m, v, config['t']+1
+    config['m'], config['v'] = m, v
     return next_x, config
