@@ -1,6 +1,6 @@
 from builtins import range, object
 from layer_utils import softmax_loss, affine_relu_forward, affine_relu_backward, affine_bn_relu_forward, affine_bn_relu_backward
-from layers import affine_forward, affine_backward
+from layers import affine_forward, affine_backward, dropout_forward, dropout_backward
 import numpy as np
 
 
@@ -177,6 +177,7 @@ class FullyConnectedNet(object):
 
         scores = None
         cache = self.num_layers * [None]
+        dropout_cache = (self.num_layers - 1) * [None]
         for i in np.arange(self.num_layers-1):
             if not self.use_batchnorm:
                 scores, cache[i] = affine_relu_forward(
@@ -185,6 +186,8 @@ class FullyConnectedNet(object):
                 scores, cache[i] = affine_bn_relu_forward(X if i == 0 else scores, self.params['W%d' % (i+1)],
                                                           self.params['b%d' % (i+1)], self.params['gamma%d' % (i+1)],
                                                           self.params['beta%d' % (i+1)], self.bn_params[i])
+            if self.use_dropout:
+                scores, dropout_cache[i] = dropout_forward(scores, self.dropout_param)
 
         scores, cache[self.num_layers-1] = affine_forward(
             scores, self.params['W%d' % self.num_layers], self.params['b%d' % self.num_layers])
@@ -205,6 +208,8 @@ class FullyConnectedNet(object):
             dscore, cache[self.num_layers-1])
 
         for i in reversed(np.arange(self.num_layers-1)):
+            if self.use_dropout:
+                dx = dropout_backward(dx, dropout_cache[i])
             if not self.use_batchnorm:
                 dx, grads['W%d' % (i+1)], grads['b%d' % (i+1)] = affine_relu_backward(dx, cache[i])
             else:
