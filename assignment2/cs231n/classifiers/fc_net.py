@@ -1,5 +1,5 @@
 from builtins import range, object
-from layer_utils import softmax_loss, affine_relu_forward, affine_relu_backward
+from layer_utils import softmax_loss, affine_relu_forward, affine_relu_backward, affine_bn_relu_forward, affine_bn_relu_backward
 from layers import affine_forward, affine_backward
 import numpy as np
 
@@ -133,8 +133,8 @@ class FullyConnectedNet(object):
 
         if use_batchnorm:
             for i in np.arange(len(hidden_dims)):
-                self.params['gamma%d' % (i+1)] = 1
-                self.params['beta%d' % (i+1)] = 0
+                self.params['gamma%d' % (i+1)] = np.ones(hidden_dims[i])
+                self.params['beta%d' % (i+1)] = np.zeros(hidden_dims[i])
 
         # When using dropout we need to pass a dropout_param dictionary to each
         # dropout layer so that the layer knows the dropout probability and the mode
@@ -178,8 +178,13 @@ class FullyConnectedNet(object):
         scores = None
         cache = self.num_layers * [None]
         for i in np.arange(self.num_layers-1):
-            scores, cache[i] = affine_relu_forward(
-                X if i == 0 else scores, self.params['W%d' % (i+1)], self.params['b%d' % (i+1)])
+            if not self.use_batchnorm:
+                scores, cache[i] = affine_relu_forward(
+                    X if i == 0 else scores, self.params['W%d' % (i+1)], self.params['b%d' % (i+1)])
+            else:
+                scores, cache[i] = affine_bn_relu_forward(X if i == 0 else scores, self.params['W%d' % (i+1)],
+                                                          self.params['b%d' % (i+1)], self.params['gamma%d' % (i+1)],
+                                                          self.params['beta%d' % (i+1)], self.bn_params[i])
 
         scores, cache[self.num_layers-1] = affine_forward(
             scores, self.params['W%d' % self.num_layers], self.params['b%d' % self.num_layers])
@@ -200,7 +205,11 @@ class FullyConnectedNet(object):
             dscore, cache[self.num_layers-1])
 
         for i in reversed(np.arange(self.num_layers-1)):
-            dx, grads['W%d' % (i+1)], grads['b%d' % (i+1)] = affine_relu_backward(dx, cache[i])
+            if not self.use_batchnorm:
+                dx, grads['W%d' % (i+1)], grads['b%d' % (i+1)] = affine_relu_backward(dx, cache[i])
+            else:
+                dx, grads['W%d' % (i+1)], grads['b%d' % (i+1)], grads['gamma%d' % (i+1)], grads['beta%d' % (i+1)] \
+                    = affine_bn_relu_backward(dx, cache[i])
 
         for i in np.arange(self.num_layers):
             loss += .5 * self.reg * np.sum(np.square(self.params['W%d' % (i+1)]))

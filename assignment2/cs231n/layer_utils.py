@@ -1,9 +1,21 @@
 from layers import *
 from fast_layers import *
 
-def affline_bn_relu_forward(x, w, b, gamma, bete, bn_param):
-    affline_out, affine_cache = affine_forward(x, w, b)
-    bn_out, bn_cache = batchnorm_backward_alt(affline_out, gamma, bete, bn_param)
+
+def affine_bn_relu_forward(x, w, b, gamma, beta, bn_param):
+    affine_out, affine_cache = affine_forward(x, w, b)
+    bn_out, bn_cache = batchnorm_forward(affine_out, gamma, beta, bn_param)
+    relu_out, relu_cache = relu_forward(bn_out)
+    return relu_out, (affine_cache, bn_cache, relu_cache)
+
+
+def affine_bn_relu_backward(dout, cache):
+    affine_cache, bn_cache, relu_cache = cache
+    da = relu_backward(dout, relu_cache)
+    dx, dgamma, dbeta = batchnorm_backward_alt(da, bn_cache)
+    dx, dw, db = affine_backward(dx, affine_cache)
+    return dx, dw, db, dgamma, dbeta
+
 
 def affine_relu_forward(x, w, b):
     """
