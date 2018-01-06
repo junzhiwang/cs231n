@@ -1,6 +1,9 @@
 from layers import *
 from fast_layers import *
 
+def affline_bn_relu_forward(x, w, b, gamma, bete, bn_param):
+    affline_out, affine_cache = affine_forward(x, w, b)
+    bn_out, bn_cache = batchnorm_backward_alt(affline_out, gamma, bete, bn_param)
 
 def affine_relu_forward(x, w, b):
     """

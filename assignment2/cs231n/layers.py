@@ -133,11 +133,11 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         sample_mean = np.sum(x, axis=0) / N
         sample_var = np.sum(np.square(x - sample_mean), axis=0) / N
         zero_centered_x = x - sample_mean
-        normalized_x = zero_centered_x / np.sqrt(sample_var)
-
+        sample_corrected_std = np.sqrt(sample_var + eps)
+        normalized_x = zero_centered_x / sample_corrected_std
         # Use gamma and beta to scale and shift
         out = normalized_x * gamma + beta
-        cache = (x, zero_centered_x, normalized_x, gamma, beta, sample_mean, sample_var)
+        cache = (x, zero_centered_x, normalized_x, gamma, beta, sample_mean, sample_corrected_std)
         # Keep average running mean and running var, use them in test time
         running_mean = (1 - momentum) * running_mean + momentum * sample_mean
         running_var = (1 - momentum) * running_var + momentum * sample_var
@@ -145,7 +145,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     elif mode == 'test':
         out = np.copy(x)
         out -= running_mean
-        out /= np.sqrt(running_var)
+        out /= (np.sqrt(running_var + eps))
         out = out * gamma + beta
 
     else:
@@ -175,14 +175,14 @@ def batchnorm_backward(dout, cache):
     - dgamma: Gradient with respect to scale parameter gamma, of shape (D,)
     - dbeta: Gradient with respect to shift parameter beta, of shape (D,)
     """
-    x, zero_centered_x, normalized_x, gamma, beta, sample_mean, sample_var = cache
+    x, zero_centered_x, normalized_x, gamma, beta, sample_mean, sample_corrected_std = cache
     dx, dgamma, dbeta = np.zeros_like(x), np.zeros_like(gamma), np.zeros_like(beta)
     N, D = x.shape
-
+    sample_corrected_var = sample_corrected_std**2
     for i in np.arange(N):
         for j in np.arange(D):
             mean_j = sample_mean[j]
-            var_j = sample_var[j]
+            var_j = sample_corrected_var[j]
             dxij = np.zeros_like(dx[:, j])
             dxij -= np.sqrt(var_j)
             dxij -= (x[i, j] - mean_j) * (x[:, j] - mean_j) / np.sqrt(var_j)
@@ -208,13 +208,12 @@ def batchnorm_backward_alt(dout, cache):
 
     Inputs / outputs: Same as batchnorm_backward
     """
-    x, zero_centered_x, normalized_x, gamma, beta, mean, var = cache
+    x, zero_centered_x, normalized_x, gamma, beta, mean, corrected_std = cache
     N, D = x.shape
-
-    std = np.sqrt(var)
-    mul = gamma / (N * var)
+    mul = gamma / (N * corrected_std**2)
     scale = dout * mul
-    dx = std * (N * scale - np.sum(scale, axis=0)) - zero_centered_x * np.sum(zero_centered_x * dout, axis=0) * mul / std
+    dx = corrected_std * (N * scale - np.sum(scale, axis=0)) - \
+        zero_centered_x * np.sum(zero_centered_x * dout, axis=0) * mul / corrected_std
     dgamma = np.sum(normalized_x * dout, axis=0)
     dbeta = np.sum(dout, axis=0)
     return dx, dgamma, dbeta
