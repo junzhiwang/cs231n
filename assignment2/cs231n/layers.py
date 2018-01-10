@@ -299,15 +299,30 @@ def conv_forward_naive(x, w, b, conv_param):
       W' = 1 + (W + 2 * pad - WW) / stride
     - cache: (x, w, b, conv_param)
     """
-    out = None
-    ###########################################################################
-    # TODO: Implement the convolutional forward pass.                         #
-    # Hint: you can use the function np.pad for padding.                      #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    pad, stride = conv_param['pad'], conv_param['stride']
+    num_train, num_channel, im_height, im_width = x.shape
+    num_filter, _, filter_height, filter_width = w.shape
+
+    # Ensure the output height and width are available
+    assert (im_height + 2 * pad - filter_height) % stride == 0, 'Invalid conv parameters'
+    assert (im_width + 2 * pad - filter_width) % stride == 0, 'Invalid conv parameters'
+
+    out_height = 1 + (im_height + 2 * pad - filter_height) // stride
+    out_width = 1 + (im_width + 2 * pad - filter_width) // stride
+
+    out = np.zeros((num_train, num_filter, out_height, out_width), dtype=x.dtype)
+
+    # Pad zeros
+    x_padded = np.lib.pad(x, ((0, 0), (0, 0), (pad, pad), (pad, pad)), 'constant',
+                          constant_values=((0, 0), (0, 0), (0, 0), (0, 0)))
+
+    for i in np.arange(num_train):
+        for j in np.arange(num_filter):
+            for m in np.arange(out_height):
+                for n in np.arange(out_width):
+                    out[i, j, m, n] = np.sum(x_padded[i, :, m*stride:m*stride+filter_height,
+                                             n*stride:n*stride+filter_width] * w[j, :]) + b[j]
+
     cache = (x, w, b, conv_param)
     return out, cache
 
