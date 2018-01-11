@@ -385,13 +385,31 @@ def max_pool_forward_naive(x, pool_param):
     assert (im_height - pool_height) % stride == 0, 'Invalid pooling parameters'
     assert (im_width - pool_width) % stride == 0, 'Invalid pooling parameters'
 
-    out_width = 1 + (im_height - pool_height) // stride
-    out_height = 1 + (im_width - pool_width) // stride
+    out_height = 1 + (im_height - pool_height) // stride
+    out_width = 1 + (im_width - pool_width) // stride
     out = np.zeros((num_train, num_channel, out_width, out_height), dtype=x.dtype)
 
     for m in np.arange(out_height):
         for n in np.arange(out_width):
-            out[:, :, m, n] = x[:, :, m*stride:m*stride+pool_height, n*stride:n*stride+pool_width].max((2, 3))
+            out[:, :, m, n] = x[:, :, m * stride:m * stride + pool_height, n * stride:n * stride + pool_width].max((2, 3))
+
+    cache = (x, pool_param)
+    return out, cache
+
+
+def max_pool_forward_fast_myself(x, pool_param):
+    num_train, num_channel, im_height, im_width = x.shape
+    pool_height, pool_width, stride = pool_param['pool_height'], pool_param['pool_width'], pool_param['stride']
+
+    assert (im_height - pool_height) % stride == 0, 'Invalid pooling parameters'
+    assert (im_width - pool_width) % stride == 0, 'Invalid pooling parameters'
+
+    out_height = 1 + (im_height - pool_height) // stride
+    out_width = 1 + (im_width - pool_width) // stride
+    pools_shape = (num_train, num_channel, out_height, out_width, pool_height, pool_width)
+    pools_strides = x.itemsize * np.array((num_channel * im_height * im_width, im_height * im_width, im_width * stride, stride, im_width, 1))
+    pools = np.lib.stride_tricks.as_strided(x, shape=pools_shape, strides=pools_strides)
+    out = pools.max((4, 5))
 
     cache = (x, pool_param)
     return out, cache
@@ -408,7 +426,6 @@ def max_pool_backward_naive(dout, cache):
     Returns:
     - dx: Gradient with respect to x
     """
-    dx = None
 
     return dx
 
