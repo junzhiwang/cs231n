@@ -340,14 +340,27 @@ def conv_backward_naive(dout, cache):
     - dw: Gradient with respect to w
     - db: Gradient with respect to b
     """
-    dx, dw, db = None, None, None
-    ###########################################################################
-    # TODO: Implement the convolutional backward pass.                        #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    x, w, b, conv_param = cache
+    num_train, num_channel, im_height, im_width = x.shape
+    num_filter, _, filter_height, filter_width = w.shape
+    _, _, out_height, out_width = dout.shape
+    pad, stride = conv_param['pad'], conv_param['stride']
+    dx, dw, db = np.zeros_like(x, dtype=x.dtype), np.zeros_like(w, dtype=w.dtype), np.zeros_like(b, dtype=b.dtype)
+    db = np.sum(dout, axis=(0, 2, 3))
+
+    for i in np.arange(num_train):
+        for j in np.arange(num_filter):
+            for m in np.arange(out_height):
+                for n in np.arange(out_width):
+                    x_padded_t, x_padded_l = m*stride-pad, n*stride-pad
+                    x_bound_t = max(0, x_padded_t)
+                    x_bound_b = min(im_height, x_padded_t+filter_height)
+                    x_bound_l = max(0, x_padded_l)
+                    x_bound_r = min(im_width, x_padded_l+filter_width)
+                    w_bound_t, w_bound_l = max(0, -x_padded_t), max(0, -x_padded_l)
+                    w_bound_b, w_bound_r = min(filter_height, im_height-x_padded_t), min(filter_width, im_width-x_padded_l)
+                    dx[i, :, x_bound_t:x_bound_b, x_bound_l:x_bound_r] += dout[i, j, m, n] * w[j, :, w_bound_t:w_bound_b, w_bound_l:w_bound_r]
+                    dw[j, :, w_bound_t:w_bound_b, w_bound_l:w_bound_r] += dout[i, j, m, n] * x[i, :, x_bound_t:x_bound_b, x_bound_l:x_bound_r]
     return dx, dw, db
 
 
