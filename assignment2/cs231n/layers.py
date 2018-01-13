@@ -1,4 +1,5 @@
 from builtins import range
+from fast_layers import max_pool_forward_reshape
 import numpy as np
 
 
@@ -379,22 +380,21 @@ def max_pool_forward_naive(x, pool_param):
     - out: Output data
     - cache: (x, pool_param)
     """
+    """
     num_train, num_channel, im_height, im_width = x.shape
-    pool_height, pool_width, stride = pool_param['pool_height'], pool_param['pool_width'], pool_param['stride']
-
+    pool_height, pool_width, stride = pool_param['pool_height'], pool_param['pool_width'], pool_param['stride']    
     assert (im_height - pool_height) % stride == 0, 'Invalid pooling parameters'
-    assert (im_width - pool_width) % stride == 0, 'Invalid pooling parameters'
-
+    assert (im_width - pool_width) % stride == 0, 'Invalid pooling parameters'    
     out_height = 1 + (im_height - pool_height) // stride
     out_width = 1 + (im_width - pool_width) // stride
-    out = np.zeros((num_train, num_channel, out_height, out_width), dtype=x.dtype)
-
+    out = np.zeros((num_train, num_channel, out_height, out_width), dtype=x.dtype)    
     for m in np.arange(out_height):
         for n in np.arange(out_width):
-            out[:, :, m, n] = x[:, :, m * stride:m * stride + pool_height, n * stride:n * stride + pool_width].max((2, 3))
-
+            out[:, :, m, n] = x[:, :, m * stride:m * stride + pool_height, n * stride:n * stride + pool_width].max((2, 3))    
     cache = (x, pool_param)
     return out, cache
+    """
+    return max_pool_forward_fast_myself(x, pool_param)
 
 
 def max_pool_forward_fast_myself(x, pool_param):
@@ -411,7 +411,7 @@ def max_pool_forward_fast_myself(x, pool_param):
     pools = np.lib.stride_tricks.as_strided(x, shape=pools_shape, strides=pools_strides)
     out = pools.max((4, 5))
 
-    cache = (x, pool_param)
+    cache = (x, pools, pool_param)
     return out, cache
 
 
@@ -431,20 +431,44 @@ def max_pool_forward_fast_myself_modified(x, pool_param):
     indices = pools.argmax(1)
     out = pools[np.arange(pools.shape[0]), indices].reshape(num_train, num_channel, out_height, out_width)
 
-    cache = (x, indices, pool_param)
+    cache = (x, pools, indices, pool_param)
     return out, cache
 
 
-def max_pool_backward_fast_myself_modified(dout, cache):
+def max_pool_forward_fast_myself_special(x, pool_param):
+    return max_pool_forward_reshape(x, pool_param)
+
+
+def max_pool_backward_fast_myself_special(dout, cache):
+    """
+    Modified version of fast_layers, improved performance about 60%
+    Only when max_pool_forward_fast_myself_special is called
+    Only available and efficient when stride == pool_width == pool_height
+    :param dout:
+    :param cache:
+    :return:
+    - dx: Gradient with respect to x
+    """
+    x, x_reshaped, out, pool_param = cache
+    out_reshaped = out[:, :, :, np.newaxis, :, np.newaxis]
+    mask = out_reshaped == x_reshaped
+    dx = dout[:, :, :, np.newaxis, :, np.newaxis] * mask
+    dx /= np.sum(mask, axis=(3,5), keepdims=True)
+    dx = dx.reshape(x.shape)
+    return dx
+
+
+def max_pool_backward_fast_myself_nonspecial(dout, cache):
     """
     max_pool_forward_fast_myself_modified is called
+    Only efficient when General case (with overlap, width != height etc.)
 
     :param dout:
     :param cache:
     :return:
     - dx: Gradient with respect to x
     """
-    x, indices, pool_param = cache
+    x, pools, indices, pool_param = cache
     pool_height, pool_width, stride = pool_param['pool_height'], pool_param['pool_width'], pool_param['stride']
     num_train, num_channel, out_height, out_width = dout.shape
     _, _, im_height, im_width = x.shape
@@ -456,14 +480,14 @@ def max_pool_backward_fast_myself_modified(dout, cache):
     x_h, x_w = out_h * stride + pool_h, out_w * stride + pool_w
     x_pos = x_h * im_width + x_w
     dx[np.arange(dx.shape[0]), x_pos] = dout.flatten()
-    dx = dx.reshape(num_train*num_channel, out_height*out_width, -1).transpose(0, 2, 1).sum(2).reshape(num_train, num_channel, im_height, im_width)
+    dx = dx.reshape(num_train, num_channel, out_height*out_width, -1).transpose(0, 1, 3, 2).sum(3).reshape(num_train, num_channel, im_height, im_width)
     return dx
 
 
 def max_pool_backward_naive(dout, cache):
     """
     A naive implementation of the backward pass for a max pooling layer.
-
+    Can only be used if max_pool_forward_fast_myself_modified is called.
     Inputs:
     - dout: Upstream derivatives
     - cache: A tuple of (x, pool_param) as in the forward pass.
@@ -471,8 +495,38 @@ def max_pool_backward_naive(dout, cache):
     Returns:
     - dx: Gradient with respect to x
     """
+    x, pools, pool_param = cache
+    pool_height, pool_width, stride = pool_param['pool_height'], pool_param['pool_width'], pool_param['stride']
+    num_train, num_channel, out_height, out_width = dout.shape
 
+    dx = np.zeros_like(x, dtype=x.dtype)
+    for i in np.arange(num_train):
+        for j in np.arange(num_channel):
+            for m in np.arange(out_height):
+                for n in np.arange(out_width):
+                    pool_max_idx = pools[i, j, m, n].argmax()
+                    pool_h, pool_w = pool_max_idx // pool_width, pool_max_idx % pool_width
+                    st_h, st_w = np.array([m, n]) * stride
+                    dx[i, j, st_h + pool_h, st_w + pool_w] += dout[i, j, m, n]
     return dx
+
+
+def max_pool_forward_general(x, pool_param):
+    pool_height, pool_width, stride = pool_param['pool_height'], pool_param['pool_width'], pool_param['stride']
+    if pool_height == pool_width == stride:
+        return max_pool_forward_fast_myself_special(x, pool_param)
+    else:
+        return max_pool_forward_fast_myself(x, pool_param)
+
+
+def max_pool_backward_general(dout, cache):
+    pool_param = cache[-1]
+    pool_height, pool_width, stride = pool_param['pool_height'], pool_param['pool_width'], pool_param['stride']
+    if pool_height == pool_width == stride:
+        return max_pool_backward_fast_myself_special(dout, cache)
+    else:
+        # Bad performance occurs here, we should avoid using such pool parameters.
+        return max_pool_backward_naive(dout, cache)
 
 
 def spatial_batchnorm_forward(x, gamma, beta, bn_param):

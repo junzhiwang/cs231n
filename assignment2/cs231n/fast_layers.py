@@ -187,7 +187,7 @@ def max_pool_forward_reshape(x, pool_param):
                            W // pool_width, pool_width)
     out = x_reshaped.max(axis=3).max(axis=4)
 
-    cache = (x, x_reshaped, out)
+    cache = (x, x_reshaped, out, pool_param)
     return out, cache
 
 
@@ -208,7 +208,7 @@ def max_pool_backward_reshape(dout, cache):
     however this results in a significant performance penalty (about 40% slower)
     and is unlikely to matter in practice so we don't do it.
     """
-    x, x_reshaped, out = cache
+    x, x_reshaped, out, pool_param = cache
 
     dx_reshaped = np.zeros_like(x_reshaped)
     out_newaxis = out[:, :, :, np.newaxis, :, np.newaxis]
@@ -240,7 +240,7 @@ def max_pool_forward_im2col(x, pool_param):
     out_width = (W - pool_width) // stride + 1
 
     x_split = x.reshape(N * C, 1, H, W)
-    x_cols = im2col(x_split, pool_height, pool_width, padding=0, stride=stride)
+    x_cols = im2col_cython(x_split, pool_height, pool_width, padding=0, stride=stride)
     x_cols_argmax = np.argmax(x_cols, axis=0)
     x_cols_max = x_cols[x_cols_argmax, np.arange(x_cols.shape[1])]
     out = x_cols_max.reshape(out_height, out_width, N, C).transpose(2, 3, 0, 1)
