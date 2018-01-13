@@ -387,7 +387,7 @@ def max_pool_forward_naive(x, pool_param):
 
     out_height = 1 + (im_height - pool_height) // stride
     out_width = 1 + (im_width - pool_width) // stride
-    out = np.zeros((num_train, num_channel, out_width, out_height), dtype=x.dtype)
+    out = np.zeros((num_train, num_channel, out_height, out_width), dtype=x.dtype)
 
     for m in np.arange(out_height):
         for n in np.arange(out_width):
@@ -413,6 +413,51 @@ def max_pool_forward_fast_myself(x, pool_param):
 
     cache = (x, pool_param)
     return out, cache
+
+
+def max_pool_forward_fast_myself_modified(x, pool_param):
+    num_train, num_channel, im_height, im_width = x.shape
+    pool_height, pool_width, stride = pool_param['pool_height'], pool_param['pool_width'], pool_param['stride']
+
+    assert (im_height - pool_height) % stride == 0, 'Invalid pooling parameters'
+    assert (im_width - pool_width) % stride == 0, 'Invalid pooling parameters'
+
+    out_height = 1 + (im_height - pool_height) // stride
+    out_width = 1 + (im_width - pool_width) // stride
+    pools_shape = (num_train, num_channel, out_height, out_width, pool_height, pool_width)
+    pools_strides = x.itemsize * np.array((num_channel * im_height * im_width, im_height * im_width, im_width * stride, stride, im_width, 1))
+    pools = np.lib.stride_tricks.as_strided(x, shape=pools_shape, strides=pools_strides)
+    pools = pools.reshape(num_train*num_channel*out_height*out_width, -1)
+    indices = pools.argmax(1)
+    out = pools[np.arange(pools.shape[0]), indices].reshape(num_train, num_channel, out_height, out_width)
+
+    cache = (x, indices, pool_param)
+    return out, cache
+
+
+def max_pool_backward_fast_myself_modified(dout, cache):
+    """
+    max_pool_forward_fast_myself_modified is called
+
+    :param dout:
+    :param cache:
+    :return:
+    - dx: Gradient with respect to x
+    """
+    x, indices, pool_param = cache
+    pool_height, pool_width, stride = pool_param['pool_height'], pool_param['pool_width'], pool_param['stride']
+    num_train, num_channel, out_height, out_width = dout.shape
+    _, _, im_height, im_width = x.shape
+    dx = np.zeros((num_train * num_channel * out_height * out_width, im_height * im_width), dtype=x.dtype)
+    pos = np.arange(len(indices))
+    out_pos = pos % (out_height * out_width)
+    out_h, out_w = out_pos // out_width, out_pos % out_width
+    pool_h, pool_w = indices // pool_width,  indices % pool_width
+    x_h, x_w = out_h * stride + pool_h, out_w * stride + pool_w
+    x_pos = x_h * im_width + x_w
+    dx[np.arange(dx.shape[0]), x_pos] = dout.flatten()
+    dx = dx.reshape(num_train*num_channel, out_height*out_width, -1).transpose(0, 2, 1).sum(2).reshape(num_train, num_channel, im_height, im_width)
+    return dx
 
 
 def max_pool_backward_naive(dout, cache):
