@@ -453,7 +453,7 @@ def max_pool_backward_fast_myself_special(dout, cache):
     out_reshaped = out[:, :, :, np.newaxis, :, np.newaxis]
     mask = out_reshaped == x_reshaped
     dx = dout[:, :, :, np.newaxis, :, np.newaxis] * mask
-    dx /= np.sum(mask, axis=(3,5), keepdims=True)
+    dx /= np.sum(mask, axis=(3, 5), keepdims=True)
     dx = dx.reshape(x.shape)
     return dx
 
