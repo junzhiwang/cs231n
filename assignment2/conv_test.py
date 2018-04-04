@@ -82,24 +82,26 @@ class MyThreeLayerConvNet(nn.Module):
     def __init__(self):
         super(MyThreeLayerConvNet, self).__init__()
         """
-        [Conv - Relu - Pooling] * 3 - Affine
-        3*32*32 - 32*32*32 - 32*16*16 - 32*8*8 - Affine - Relu - Affine -> pred
+        [[Conv - Relu] * 3 - Pool] * 3 - Affine Relu - Affine
         """
-        self.in_channel = [3, 128, 128]
-        self.out_channel = [128, 128, 64]
-        self.kernel_size = [3, 3, 3]
-        self.padding = [1, 1, 1]
-        self.stride = [1, 1, 1]
+        self.in_channel = [[3, 128, 128], [128, 128, 128], [128, 128, 128]]
+        self.out_channel = [[128, 128, 128], [128, 128, 128], [128, 128, 128]]
+        self.kernel_size = [[3, 3, 3], [3, 3, 3], [3, 3, 3]]
+        self.padding = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
+        self.stride = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
         self.pool_size = [2, 2, 2]
         self.pool_stride = [2, 2, 2]
-        self.affine_in = [1024, 256]
-        self.affine_out = [256, 10]
+        self.affine_in = [2048, 512]
+        self.affine_out = [512, 10]
         self.layers = {}
 
         for i in range(3):
-            self.layers['conv{0}'.format(i)] = nn.Conv2d(in_channels=self.in_channel[i], out_channels=self.out_channel[i],
-                kernel_size=self.kernel_size[i], padding=self.padding[i], stride=self.stride[i])
-            self.layers['relu{0}'.format(i)] = nn.ReLU()
+            for j in range(3):
+                self.layers['conv{0}{1}'.format(i, j)] = nn.Conv2d(in_channels=self.in_channel[i][j],
+                    out_channels=self.out_channel[i][j],
+                    kernel_size=self.kernel_size[i][j], padding=self.padding[i][j],
+                    stride=self.stride[i][j])
+                self.layers['relu{0}{1}'.format(i, j)] = nn.ReLU()
             self.layers['pool{0}'.format(i)] = nn.MaxPool2d(kernel_size=self.pool_size[i])
 
         for i in range(2):
@@ -111,14 +113,15 @@ class MyThreeLayerConvNet(nn.Module):
 
         layers = []
         for i in range(3):
-            layers.append(self.layers['conv{0}'.format(i)])
-            layers.append(self.layers['relu{0}'.format(i)])
+            for j in range(3):
+                layers.append(self.layers['conv{0}{1}'.format(i, j)])
+                layers.append(self.layers['relu{0}{1}'.format(i, j)])
             layers.append(self.layers['pool{0}'.format(i)])
         layers.append(Flatten())
         for i in range(2):
             layers.append(self.layers['affine{0}'.format(i)])
             if i == 0:
-                layers.append(self.layers['relu{0}'.format(i)])
+                layers.append(self.layers['relu{0}0'.format(i)])
         self.model = nn.Sequential(*layers)
 
     def forward(self, x):
