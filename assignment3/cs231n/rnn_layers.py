@@ -29,15 +29,11 @@ def rnn_step_forward(x, prev_h, Wx, Wh, b):
     - cache: Tuple of values needed for the backward pass.
     """
     next_h, cache = None, None
-    ##############################################################################
-    # TODO: Implement a single forward step for the vanilla RNN. Store the next  #
-    # hidden state and any values you need for the backward pass in the next_h   #
-    # and cache variables respectively.                                          #
-    ##############################################################################
-    pass
-    ##############################################################################
-    #                               END OF YOUR CODE                             #
-    ##############################################################################
+
+    internal = prev_h.dot(Wh) + x.dot(Wx) + b
+    next_h = np.tanh(internal)
+    cache = (x, prev_h, Wx, Wh, b, internal)
+
     return next_h, cache
 
 
@@ -56,17 +52,14 @@ def rnn_step_backward(dnext_h, cache):
     - dWh: Gradients of hidden-to-hidden weights, of shape (H, H)
     - db: Gradients of bias vector, of shape (H,)
     """
-    dx, dprev_h, dWx, dWh, db = None, None, None, None, None
-    ##############################################################################
-    # TODO: Implement the backward pass for a single step of a vanilla RNN.      #
-    #                                                                            #
-    # HINT: For the tanh function, you can compute the local derivative in terms #
-    # of the output value from tanh.                                             #
-    ##############################################################################
-    pass
-    ##############################################################################
-    #                               END OF YOUR CODE                             #
-    ##############################################################################
+    X, prev_h, Wx, Wh, b, internal = cache
+
+    dInternal = dnext_h * (1 - np.tanh(internal)**2)
+    dx = dInternal.dot(Wx.T)
+    dprev_h = dInternal.dot(Wh.T)
+    dWx = X.T.dot(dInternal)
+    dWh = prev_h.T.dot(dInternal)
+    db = np.sum(dInternal, axis=0)
     return dx, dprev_h, dWx, dWh, db
 
 
