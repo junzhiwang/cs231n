@@ -143,16 +143,9 @@ def word_embedding_forward(x, W):
     - out: Array of shape (N, T, D) giving word vectors for all input words.
     - cache: Values needed for the backward pass
     """
-    out, cache = None, None
-    ##############################################################################
-    # TODO: Implement the forward pass for word embeddings.                      #
-    #                                                                            #
-    # HINT: This can be done in one line using NumPy's array indexing.           #
-    ##############################################################################
-    pass
-    ##############################################################################
-    #                               END OF YOUR CODE                             #
-    ##############################################################################
+    V, _ = W.shape
+    out, cache = W[x], (x, V)
+
     return out, cache
 
 
@@ -171,17 +164,12 @@ def word_embedding_backward(dout, cache):
     Returns:
     - dW: Gradient of word embedding matrix, of shape (V, D).
     """
-    dW = None
-    ##############################################################################
-    # TODO: Implement the backward pass for word embeddings.                     #
-    #                                                                            #
-    # Note that Words can appear more than once in a sequence.                   #
-    # HINT: Look up the function np.add.at                                       #
-    ##############################################################################
-    pass
-    ##############################################################################
-    #                               END OF YOUR CODE                             #
-    ##############################################################################
+    x, V = cache
+    N, T, D = dout.shape
+    dW = np.zeros((V, D), dtype=np.float)
+
+    # https: // docs.scipy.org / doc / numpy / reference / generated / numpy.ufunc.at.html
+    np.add.at(dW, x.reshape(-1), dout.reshape(N * T, -1))
     return dW
 
 
