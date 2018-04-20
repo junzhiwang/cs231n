@@ -81,16 +81,15 @@ def rnn_forward(x, h0, Wx, Wh, b):
     - h: Hidden states for the entire timeseries, of shape (N, T, H).
     - cache: Values needed in the backward pass
     """
-    h, cache = None, None
-    ##############################################################################
-    # TODO: Implement forward pass for a vanilla RNN running on a sequence of    #
-    # input data. You should use the rnn_step_forward function that you defined  #
-    # above. You can use a for loop to help compute the forward pass.            #
-    ##############################################################################
-    pass
-    ##############################################################################
-    #                               END OF YOUR CODE                             #
-    ##############################################################################
+    N, T, D = x.shape
+    _, H = h0.shape
+    h, cache = np.zeros((N, T, H), dtype=np.float), []
+    prev_h = h0.copy()
+    for t in np.arange(T):
+        xt = x[:, t, :]
+        prev_h, cache_t = rnn_step_forward(xt, prev_h, Wx, Wh, b)
+        h[:, t, :] = prev_h
+        cache.append(cache_t)
     return h, cache
 
 
@@ -108,16 +107,24 @@ def rnn_backward(dh, cache):
     - dWh: Gradient of hidden-to-hidden weights, of shape (H, H)
     - db: Gradient of biases, of shape (H,)
     """
-    dx, dh0, dWx, dWh, db = None, None, None, None, None
-    ##############################################################################
-    # TODO: Implement the backward pass for a vanilla RNN running an entire      #
-    # sequence of data. You should use the rnn_step_backward function that you   #
-    # defined above. You can use a for loop to help compute the backward pass.   #
-    ##############################################################################
-    pass
-    ##############################################################################
-    #                               END OF YOUR CODE                             #
-    ##############################################################################
+    N, T, H = dh.shape
+    _, D = cache[0][0].shape
+    dx, dh0, dWx, dWh, db = np.zeros((N, T, D), dtype=np.float), \
+                            None, \
+                            np.zeros((D, H), dtype=np.float), \
+                            np.zeros((H, H), dtype=np.float), \
+                            np.zeros((H, ), dtype=np.float)
+
+    dprev_h = np.zeros((N, H), dtype=np.float)
+    for t in reversed(np.arange(T)):
+        dUpsteam_h = dh[:, t, :]
+        dxt, dprev_h, dWxt, dWht, dbt = rnn_step_backward(dUpsteam_h + dprev_h, cache[t])
+        dx[:, t, :] += dxt
+        dWx += dWxt
+        dWh += dWht
+        db += dbt
+    dh0 = dprev_h
+
     return dx, dh0, dWx, dWh, db
 
 
