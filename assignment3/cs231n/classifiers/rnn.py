@@ -116,8 +116,9 @@ class CaptioningRNN(object):
         W_vocab, b_vocab = self.params['W_vocab'], self.params['b_vocab']
 
         loss, grads = 0.0, {}
+
         ############################################################################
-        # TODO: Implement the forward and backward passes for the CaptioningRNN.   #
+        # Forward and backward passes for the CaptioningRNN.   #
         # In the forward pass you will need to do the following:                   #
         # (1) Use an affine transformation to compute the initial hidden state     #
         #     from the image features. This should produce an array of shape (N, H)#
@@ -137,10 +138,21 @@ class CaptioningRNN(object):
         # defined above to store loss and gradients; grads[k] should give the      #
         # gradients for self.params[k].                                            #
         ############################################################################
-        pass
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
+
+        if self.cell_type == 'rnn':
+            # Forward pass
+            h0 = features.dot(W_proj) + b_proj
+            word_embedding_out, word_embedding_cache = word_embedding_forward(captions_in, W_embed)
+            rnn_out, rnn_cache = rnn_forward(word_embedding_out, h0, Wx, Wh, b)
+            vocab_out, vocab_cache = temporal_affine_forward(rnn_out, W_vocab, b_vocab)
+            loss, dx = temporal_softmax_loss(vocab_out, captions_out, mask)
+
+            # Backward pass
+            dx, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dx, vocab_cache)
+            dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dx, rnn_cache)
+            grads['W_proj'] = features.T.dot(dh0)
+            grads['b_proj'] = np.sum(dh0, axis=0)
+            grads['W_embed'] = word_embedding_backward(dx, word_embedding_cache)
 
         return loss, grads
 
