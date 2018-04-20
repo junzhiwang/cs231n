@@ -118,7 +118,7 @@ class CaptioningRNN(object):
         loss, grads = 0.0, {}
 
         ############################################################################
-        # Forward and backward passes for the CaptioningRNN.   #
+        # Forward and backward passes for the CaptioningRNN.                       #
         # In the forward pass you will need to do the following:                   #
         # (1) Use an affine transformation to compute the initial hidden state     #
         #     from the image features. This should produce an array of shape (N, H)#
@@ -191,7 +191,7 @@ class CaptioningRNN(object):
         W_vocab, b_vocab = self.params['W_vocab'], self.params['b_vocab']
 
         ###########################################################################
-        # TODO: Implement test-time sampling for the model. You will need to      #
+        # Implement test-time sampling for the model. You will need to            #
         # initialize the hidden state of the RNN by applying the learned affine   #
         # transform to the input image features. The first word that you feed to  #
         # the RNN should be the <START> token; its value is stored in the         #
@@ -211,8 +211,16 @@ class CaptioningRNN(object):
         # functions; you'll need to call rnn_step_forward or lstm_step_forward in #
         # a loop.                                                                 #
         ###########################################################################
-        pass
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
+
+        # Get initial hidden state from image features
+        prev_h = features.dot(W_proj) + b_proj
+        # Get <start> indices
+        prev_idxs = self._start * np.ones(N, dtype=np.int)
+        captions[:, 0] = prev_idxs
+        for i in np.arange(max_length-1):
+            prev_embedded = W_embed[prev_idxs]
+            prev_h = np.tanh(prev_h.dot(Wh) + prev_embedded.dot(Wx) + b)
+            vocab_out = prev_h.dot(W_vocab) + b_vocab
+            prev_idxs = vocab_out.argmax(axis=1)
+            captions[:, i+1] = prev_idxs
         return captions
